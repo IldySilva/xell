@@ -209,14 +209,23 @@ class _SftpToolbar extends StatelessWidget {
           const SizedBox(width: AppSpacing.s8),
           ValueListenableBuilder<bool>(
             valueListenable: controller.loadingNotifier,
-            builder: (context, loading, child) => IconButton(
-              icon: const Icon(Icons.refresh, size: 15),
-              tooltip: 'Refresh',
-              color: AppColors.textMuted,
-              onPressed: loading ? null : controller.refresh,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
+            builder: (context, loading, child) => loading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.accent,
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.refresh, size: 15),
+                    tooltip: 'Refresh',
+                    color: AppColors.textMuted,
+                    onPressed: controller.refresh,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
           ),
           const SizedBox(width: AppSpacing.s8),
           ValueListenableBuilder<bool>(
@@ -378,36 +387,19 @@ class _SftpBrowser extends StatelessWidget {
                     ),
                   );
                 }
-                return Stack(
-                  children: [
-                    ListView.builder(
-                      itemCount: entries.length,
-                      itemBuilder: (context, i) {
-                        final entry = entries[i];
-                        return SftpEntryRow(
-                          entry: entry,
-                          onTap: () => controller.navigate(entry.path),
-                          onDownload: () => onDownload(entry),
-                          onEdit: entry.isDirectory ? null : () => onEdit(entry),
-                          onRename: () => onRename(entry),
-                          onDelete: () => onDelete(entry),
-                        );
-                      },
-                    ),
-                    if (loading)
-                      const Positioned(
-                        top: 8,
-                        right: 16,
-                        child: SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.accent,
-                          ),
-                        ),
-                      ),
-                  ],
+                return ListView.builder(
+                  itemCount: entries.length,
+                  itemBuilder: (context, i) {
+                    final entry = entries[i];
+                    return SftpEntryRow(
+                      entry: entry,
+                      onTap: () => controller.navigate(entry.path),
+                      onDownload: () => onDownload(entry),
+                      onEdit: entry.isDirectory ? null : () => onEdit(entry),
+                      onRename: () => onRename(entry),
+                      onDelete: () => onDelete(entry),
+                    );
+                  },
                 );
               },
             );
