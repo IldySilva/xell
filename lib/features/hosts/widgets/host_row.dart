@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../app/app_theme.dart';
 import '../../../shared/widgets/os_icon.dart';
@@ -30,13 +32,101 @@ class _HostRowState extends State<HostRow> {
 
   SshHost get host => widget.host;
 
+  void _showDesktopContextMenu(BuildContext context, Offset globalPosition) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      items: [
+        _menuItem('connect', Icons.terminal_outlined, 'Connect',
+            color: AppColors.accent),
+        _menuItem('edit', Icons.edit_outlined, 'Edit'),
+        _menuItem(
+          'favorite',
+          host.isFavorite ? Icons.star : Icons.star_border,
+          host.isFavorite ? 'Remove Favorite' : 'Add to Favorites',
+        ),
+        const PopupMenuDivider(height: 1),
+        _menuItem('delete', Icons.delete_outline, 'Delete',
+            color: const Color(0xFFF87171)),
+      ],
+    ).then((value) {
+      switch (value) {
+        case 'connect':
+          widget.onConnect();
+        case 'edit':
+          widget.onEdit();
+        case 'favorite':
+          widget.onToggleFavorite();
+        case 'delete':
+          widget.onDelete();
+      }
+    });
+  }
+
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String label, {
+    Color color = AppColors.text,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: AppSpacing.s12),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMobileMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (_) => _MobileHostMenu(
+        host: host,
+        onConnect: () { Navigator.pop(context); widget.onConnect(); },
+        onEdit: () { Navigator.pop(context); widget.onEdit(); },
+        onDelete: () { Navigator.pop(context); widget.onDelete(); },
+        onToggleFavorite: () { Navigator.pop(context); widget.onToggleFavorite(); },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = Platform.isIOS || Platform.isAndroid;
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onEnter: isMobile ? null : (_) => setState(() => _hovered = true),
+      onExit: isMobile ? null : (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onConnect,
+        onLongPress: isMobile ? () => _showMobileMenu(context) : null,
+        onSecondaryTapUp: isMobile
+            ? null
+            : (d) => _showDesktopContextMenu(context, d.globalPosition),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
@@ -113,34 +203,51 @@ class _HostRowState extends State<HostRow> {
                   ],
                 ),
               ),
-              AnimatedOpacity(
-                opacity: _hovered ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 120),
-                child: Row(
-                  children: [
-                    _RowIconButton(
-                      icon: Icons.edit_outlined,
-                      tooltip: 'Edit',
-                      onTap: widget.onEdit,
+              if (isMobile)
+                GestureDetector(
+                  onTap: () => _showMobileMenu(context),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s8,
+                      vertical: AppSpacing.s4,
                     ),
-                    const SizedBox(width: 2),
-                    _RowIconButton(
-                      icon: Icons.delete_outline,
-                      tooltip: 'Delete',
-                      onTap: widget.onDelete,
-                      danger: true,
+                    child: Icon(
+                      Icons.more_horiz,
+                      size: 18,
+                      color: AppColors.textMuted,
                     ),
-                    const SizedBox(width: AppSpacing.s8),
-                  ],
+                  ),
+                )
+              else
+                AnimatedOpacity(
+                  opacity: _hovered ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 120),
+                  child: Row(
+                    children: [
+                      _RowIconButton(
+                        icon: Icons.edit_outlined,
+                        tooltip: 'Edit',
+                        onTap: widget.onEdit,
+                      ),
+                      const SizedBox(width: 2),
+                      _RowIconButton(
+                        icon: Icons.delete_outline,
+                        tooltip: 'Delete',
+                        onTap: widget.onDelete,
+                        danger: true,
+                      ),
+                      const SizedBox(width: AppSpacing.s8),
+                    ],
+                  ),
                 ),
-              ),
               _FavoriteButton(
                 isFavorite: host.isFavorite,
                 onTap: widget.onToggleFavorite,
               ),
               const SizedBox(width: AppSpacing.s8),
               AnimatedOpacity(
-                opacity: _hovered ? 1.0 : 0.3,
+                opacity: isMobile ? 1.0 : (_hovered ? 1.0 : 0.3),
                 duration: const Duration(milliseconds: 120),
                 child: _ConnectButton(onTap: widget.onConnect),
               ),
@@ -303,6 +410,130 @@ class _RowIconButtonState extends State<_RowIconButton> {
                   : AppColors.textMuted,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Mobile context menu ───────────────────────────────────────────────────────
+
+class _MobileHostMenu extends StatelessWidget {
+  final SshHost host;
+  final VoidCallback onConnect;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onToggleFavorite;
+
+  const _MobileHostMenu({
+    required this.host,
+    required this.onConnect,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggleFavorite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s24, AppSpacing.s8, AppSpacing.s24, AppSpacing.s16,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      host.name,
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${host.username}@${host.hostname}',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            _MenuAction(
+              icon: Icons.terminal_outlined,
+              label: 'Connect',
+              color: AppColors.accent,
+              onTap: onConnect,
+            ),
+            _MenuAction(
+              icon: Icons.edit_outlined,
+              label: 'Edit',
+              onTap: onEdit,
+            ),
+            _MenuAction(
+              icon: host.isFavorite ? Icons.star : Icons.star_border,
+              label: host.isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+              onTap: onToggleFavorite,
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            _MenuAction(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              color: const Color(0xFFF87171),
+              onTap: onDelete,
+            ),
+            const SizedBox(height: AppSpacing.s8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _MenuAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color = AppColors.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s24,
+          vertical: AppSpacing.s16,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: AppSpacing.s16),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );

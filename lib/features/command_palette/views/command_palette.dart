@@ -206,7 +206,7 @@ class _CommandPaletteState extends State<CommandPalette> {
       child: Align(
         alignment: const Alignment(0, -0.25),
         child: Container(
-          width: 560,
+          width: (MediaQuery.of(context).size.width - 32).clamp(0.0, 560.0),
           constraints: const BoxConstraints(maxHeight: 420),
           decoration: BoxDecoration(
             color: AppColors.surface,

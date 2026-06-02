@@ -104,6 +104,7 @@ class _SplitControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isIOS || Platform.isAndroid) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
       child: Row(
@@ -335,7 +336,7 @@ class _TabState extends State<_Tab> {
                 onTap: widget.onClose,
                 behavior: HitTestBehavior.opaque,
                 child: AnimatedOpacity(
-                  opacity: _hovered || widget.isActive ? 1.0 : 0.0,
+                  opacity: _hovered || widget.isActive || (Platform.isIOS || Platform.isAndroid) ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 120),
                   child: const Padding(
                     padding: EdgeInsets.all(2),

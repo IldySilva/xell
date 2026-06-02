@@ -1,3 +1,4 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +31,7 @@ class _HostFormDialogState extends State<HostFormDialog> {
 
   late AuthType _authType;
   bool _saving = false;
+  bool _keyDropActive = false;
 
   bool get _isEdit => widget.host != null;
 
@@ -260,28 +262,56 @@ class _HostFormDialogState extends State<HostFormDialog> {
           children: [
             _label('Private Key Path'),
             const SizedBox(height: AppSpacing.s8),
-            Row(
-              children: [
-                Expanded(
-                  child: _rawField(
-                    controller: _keyPath,
-                    hint: '/Users/you/.ssh/id_rsa',
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Key path required'
-                        : null,
-                  ),
+            DropTarget(
+              onDragEntered: (_) => setState(() => _keyDropActive = true),
+              onDragExited: (_) => setState(() => _keyDropActive = false),
+              onDragDone: (details) {
+                setState(() => _keyDropActive = false);
+                final path = details.files.firstOrNull?.path;
+                if (path != null) _keyPath.text = path;
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(7),
+                  border: _keyDropActive
+                      ? Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.6),
+                          width: 1.5,
+                        )
+                      : null,
+                  color: _keyDropActive
+                      ? AppColors.accent.withValues(alpha: 0.06)
+                      : null,
                 ),
-                const SizedBox(width: AppSpacing.s8),
-                _SecondaryButton(
-                  label: 'Browse',
-                  onTap: _pickKeyFile,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _rawField(
+                        controller: _keyPath,
+                        hint: _keyDropActive
+                            ? 'Drop key file here…'
+                            : '/Users/you/.ssh/id_rsa',
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Key path required'
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s8),
+                    _SecondaryButton(
+                      label: 'Browse',
+                      onTap: _pickKeyFile,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
             _infoBox(
               icon: Icons.info_outline,
-              text: 'Passphrase will be stored securely when connecting.',
+              text: _keyDropActive
+                  ? 'Drop the private key file to set its path.'
+                  : 'Passphrase will be stored securely when connecting.',
             ),
           ],
         ),

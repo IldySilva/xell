@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:macos_window_utils/macos_window_utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app/xell_app.dart';
 import 'core/window_preferences.dart';
@@ -25,6 +26,14 @@ void main() async {
       await windowManager.show();
       await windowManager.focus();
     });
+
+    if (Platform.isMacOS) {
+      await WindowManipulator.initialize();
+      WindowManipulator.makeTitlebarTransparent();
+      await WindowManipulator.setMaterial(
+        NSVisualEffectViewMaterial.underWindowBackground,
+      );
+    }
   }
 
   runApp(const XellApp());
