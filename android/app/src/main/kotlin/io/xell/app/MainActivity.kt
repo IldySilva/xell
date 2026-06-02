@@ -1,4 +1,4 @@
-package io.usexell.co
+package io.xell.app
 
 import io.flutter.embedding.android.FlutterActivity
 
