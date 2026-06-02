@@ -307,6 +307,11 @@ class _TerminalPageState extends State<TerminalPage> {
       BuildContext context, Offset globalPosition, TerminalSession session) {
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+    // Capture the copy handler synchronously — no BuildContext needed later.
+    final doCopy = Actions.handler<CopySelectionTextIntent>(
+        context, CopySelectionTextIntent.copy);
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -324,10 +329,8 @@ class _TerminalPageState extends State<TerminalPage> {
       ],
     ).then((value) {
       if (value == 'copy') {
-        if (!mounted) return;
-        Actions.maybeInvoke(context, CopySelectionTextIntent.copy);
+        doCopy?.call();
       } else if (value == 'paste') {
-        // No context needed after the async gap — go direct to xterm.
         Clipboard.getData(Clipboard.kTextPlain).then((data) {
           if (data?.text != null) session.xterm?.paste(data!.text!);
         });
