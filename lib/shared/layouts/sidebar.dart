@@ -37,9 +37,13 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(right: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        // On macOS the window has native vibrancy; use a semi-transparent
+        // tint so content is still readable while the blur shows through.
+        color: Platform.isMacOS
+            ? AppColors.surface.withValues(alpha: 0.72)
+            : AppColors.surface,
+        border: const Border(right: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart' hide TerminalController;
 import '../../../app/app_theme.dart';
 import '../../../features/sftp/views/sftp_page.dart';
@@ -8,6 +11,7 @@ import '../controllers/terminal_controller.dart';
 import '../models/terminal_session.dart';
 import '../models/terminal_theme_presets.dart';
 import '../models/workspace.dart';
+import '../widgets/terminal_keyboard_toolbar.dart';
 import '../widgets/terminal_right_sidebar.dart';
 import '../widgets/terminal_tab_bar.dart';
 import '../widgets/terminal_widget.dart';
@@ -188,6 +192,11 @@ class _TerminalPageState extends State<TerminalPage> {
                                 splitAxis: splitAxis,
                               ),
                             ),
+                            if (Platform.isIOS || Platform.isAndroid)
+                              TerminalKeyboardToolbar(
+                                onSendKey: (seq) =>
+                                    _c.activeSession?.xterm?.paste(seq),
+                              ),
                           ],
                         );
                       },
@@ -294,6 +303,58 @@ class _TerminalPageState extends State<TerminalPage> {
     );
   }
 
+  void _showTerminalContextMenu(
+      BuildContext context, Offset globalPosition, TerminalSession session) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      items: [
+        _terminalMenuItem('copy', Icons.copy_outlined, 'Copy'),
+        _terminalMenuItem('paste', Icons.content_paste_outlined, 'Paste'),
+      ],
+    ).then((value) {
+      if (value == 'copy') {
+        if (!mounted) return;
+        Actions.maybeInvoke(context, CopySelectionTextIntent.copy);
+      } else if (value == 'paste') {
+        // No context needed after the async gap — go direct to xterm.
+        Clipboard.getData(Clipboard.kTextPlain).then((data) {
+          if (data?.text != null) session.xterm?.paste(data!.text!);
+        });
+      }
+    });
+  }
+
+  PopupMenuItem<String> _terminalMenuItem(
+      String value, IconData icon, String label) {
+    return PopupMenuItem<String>(
+      value: value,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.s12),
+          Text(label,
+              style:
+                  const TextStyle(color: AppColors.text, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
   Widget _pane(
     TerminalSession session, {
     bool focused = true,
@@ -308,20 +369,30 @@ class _TerminalPageState extends State<TerminalPage> {
       onReconnect: () => _reconnect(session.id),
     );
 
-    if (!showFocusBorder) return child;
+    Widget result = showFocusBorder
+        ? AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            decoration: BoxDecoration(
+              border: focused
+                  ? Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.35),
+                      width: 1.5,
+                    )
+                  : Border.all(color: Colors.transparent, width: 1.5),
+            ),
+            child: child,
+          )
+        : child;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      decoration: BoxDecoration(
-        border: focused
-            ? Border.all(
-                color: AppColors.accent.withValues(alpha: 0.35),
-                width: 1.5,
-              )
-            : Border.all(color: Colors.transparent, width: 1.5),
-      ),
-      child: child,
-    );
+    if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+      result = GestureDetector(
+        onSecondaryTapUp: (d) =>
+            _showTerminalContextMenu(context, d.globalPosition, session),
+        child: result,
+      );
+    }
+
+    return result;
   }
 }
 

@@ -4,7 +4,7 @@ import '../../terminal/models/terminal_theme_presets.dart';
 import '../data/settings_storage.dart';
 
 // Shared notifier so XellApp can rebuild MaterialApp without coupling.
-final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
 
 const List<double> terminalFontSizes = [11.0, 12.0, 13.5, 14.0, 15.0, 16.0];
 

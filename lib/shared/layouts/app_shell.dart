@@ -22,6 +22,7 @@ import '../../features/hosts/views/host_form_page.dart';
 import '../../features/hosts/views/ssh_config_import_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/dock_service.dart';
 import '../../core/update_service.dart';
 import '../../features/snippets/controllers/snippet_controller.dart';
 import '../../features/snippets/views/snippet_list_page.dart';
@@ -29,6 +30,7 @@ import '../../features/terminal/controllers/command_history_controller.dart';
 import '../../features/terminal/models/terminal_theme_presets.dart';
 import '../../features/terminal/views/credential_prompt_dialog.dart';
 import '../../features/terminal/views/terminal_page.dart';
+import '../widgets/xell_about_dialog.dart';
 import 'sidebar.dart';
 import 'top_bar.dart';
 
@@ -77,6 +79,7 @@ class _AppShellState extends State<AppShell> with WindowListener {
     _snippetController = SnippetController();
     _historyController = CommandHistoryController();
     _terminalController.activeSessionIdNotifier.addListener(_updateWindowTitle);
+    _terminalController.sessionsNotifier.addListener(_updateDockState);
     _commandStreamSub = _terminalController.commandTypedStream
         .listen((cmd) => _historyController.add(cmd));
     // Defer non-critical loads until after first frame.
@@ -91,6 +94,7 @@ class _AppShellState extends State<AppShell> with WindowListener {
   void dispose() {
     _commandStreamSub?.cancel();
     _terminalController.activeSessionIdNotifier.removeListener(_updateWindowTitle);
+    _terminalController.sessionsNotifier.removeListener(_updateDockState);
     if (_isDesktop) windowManager.removeListener(this);
     _hostController.dispose();
     _terminalController.dispose();
@@ -100,6 +104,16 @@ class _AppShellState extends State<AppShell> with WindowListener {
     _historyController.dispose();
     _updateNotifier.dispose();
     super.dispose();
+  }
+
+  void _updateDockState() {
+    final count = _terminalController.sessionsNotifier.value.length;
+    DockService.setSessionCount(count);
+    final recent = _hostController.hostsNotifier.value
+        .where((h) => h.lastConnectedAt != null)
+        .toList()
+      ..sort((a, b) => b.lastConnectedAt!.compareTo(a.lastConnectedAt!));
+    DockService.setRecentHosts(recent.take(5).map((h) => h.name).toList());
   }
 
   void _updateWindowTitle() {
@@ -393,6 +407,22 @@ class _AppShellState extends State<AppShell> with WindowListener {
     });
   }
 
+  void _showAboutDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => const XellAboutDialog(),
+    );
+  }
+
+  void _quit() => windowManager.close();
+
+  void _dispatchEditAction(Intent intent) {
+    if (!mounted) return;
+    final focusContext =
+        FocusManager.instance.primaryFocus?.context ?? context;
+    Actions.maybeInvoke(focusContext, intent);
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = CallbackShortcuts(
@@ -407,6 +437,50 @@ class _AppShellState extends State<AppShell> with WindowListener {
 
     return PlatformMenuBar(
       menus: [
+        // ── App menu (macOS: appears as the app-name menu) ────────────────
+        PlatformMenu(
+          label: 'Xell',
+          menus: [
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'About Xell',
+                  onSelected: _showAboutDialog,
+                ),
+              ],
+            ),
+            const PlatformMenuItemGroup(
+              members: [
+                PlatformProvidedMenuItem(
+                    type: PlatformProvidedMenuItemType.servicesSubmenu),
+              ],
+            ),
+            const PlatformMenuItemGroup(
+              members: [
+                PlatformProvidedMenuItem(
+                    type: PlatformProvidedMenuItemType.hide),
+                PlatformProvidedMenuItem(
+                    type:
+                        PlatformProvidedMenuItemType.hideOtherApplications),
+                PlatformProvidedMenuItem(
+                    type:
+                        PlatformProvidedMenuItemType.showAllApplications),
+              ],
+            ),
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'Quit Xell',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyQ, meta: true),
+                  onSelected: _quit,
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        // ── File menu ────────────────────────────────────────────────────
         PlatformMenu(
           label: 'File',
           menus: [
@@ -442,17 +516,103 @@ class _AppShellState extends State<AppShell> with WindowListener {
             ),
           ],
         ),
+
+        // ── Edit menu ────────────────────────────────────────────────────
         PlatformMenu(
-          label: 'Window',
+          label: 'Edit',
           menus: [
-            PlatformMenuItem(
-              label: 'Toggle Full Screen',
-              shortcut: const SingleActivator(
-                  LogicalKeyboardKey.keyF, meta: true, control: true),
-              onSelected: _toggleFullscreen,
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'Undo',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyZ, meta: true),
+                  onSelected: () => _dispatchEditAction(
+                      const UndoTextIntent(
+                          SelectionChangedCause.keyboard)),
+                ),
+                PlatformMenuItem(
+                  label: 'Redo',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyZ,
+                      meta: true,
+                      shift: true),
+                  onSelected: () => _dispatchEditAction(
+                      const RedoTextIntent(
+                          SelectionChangedCause.keyboard)),
+                ),
+              ],
+            ),
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'Cut',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyX, meta: true),
+                  onSelected: () => _dispatchEditAction(
+                      CopySelectionTextIntent.cut(
+                          SelectionChangedCause.keyboard)),
+                ),
+                PlatformMenuItem(
+                  label: 'Copy',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyC, meta: true),
+                  onSelected: () =>
+                      _dispatchEditAction(CopySelectionTextIntent.copy),
+                ),
+                PlatformMenuItem(
+                  label: 'Paste',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyV, meta: true),
+                  onSelected: () => _dispatchEditAction(
+                      const PasteTextIntent(
+                          SelectionChangedCause.keyboard)),
+                ),
+              ],
+            ),
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'Select All',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyA, meta: true),
+                  onSelected: () => _dispatchEditAction(
+                      const SelectAllTextIntent(
+                          SelectionChangedCause.keyboard)),
+                ),
+              ],
             ),
           ],
         ),
+
+        // ── Window menu ───────────────────────────────────────────────────
+        PlatformMenu(
+          label: 'Window',
+          menus: [
+            const PlatformMenuItemGroup(
+              members: [
+                PlatformProvidedMenuItem(
+                    type: PlatformProvidedMenuItemType.minimizeWindow),
+                PlatformProvidedMenuItem(
+                    type: PlatformProvidedMenuItemType.zoomWindow),
+              ],
+            ),
+            PlatformMenuItemGroup(
+              members: [
+                PlatformMenuItem(
+                  label: 'Toggle Full Screen',
+                  shortcut: const SingleActivator(
+                      LogicalKeyboardKey.keyF,
+                      meta: true,
+                      control: true),
+                  onSelected: _toggleFullscreen,
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        // ── Help menu ────────────────────────────────────────────────────
         PlatformMenu(
           label: 'Help',
           menus: [

@@ -23,6 +23,7 @@ class UpdateService {
       final body = await response.transform(utf8.decoder).join();
       client.close();
       final json = jsonDecode(body) as Map<String, dynamic>;
+      if (json['prerelease'] == true) return null;
       final tag =
           ((json['tag_name'] as String?) ?? '').replaceFirst('v', '');
       return _isNewer(tag, kAppVersion) ? tag : null;
