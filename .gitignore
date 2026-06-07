@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local release artifacts
 /dist/
+
+# Personal notes
+todo.md
