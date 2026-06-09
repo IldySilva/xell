@@ -3,6 +3,25 @@ import 'package:flutter/foundation.dart';
 import '../models/sftp_entry.dart';
 import '../services/sftp_service.dart';
 
+String _humanizeError(Object e, {required String operation}) {
+  if (e is SftpStatusError) {
+    switch (e.code) {
+      case SftpStatusCode.permissionDenied:
+        return 'Permission denied: you do not have access to $operation in this directory. Try a different directory or request elevated access.';
+      case SftpStatusCode.noSuchFile:
+        return 'The file or directory does not exist.';
+      case SftpStatusCode.noConnection:
+      case SftpStatusCode.connectionLost:
+        return 'Connection to the server was lost. Please reconnect and try again.';
+      case SftpStatusCode.opUnsupported:
+        return 'This operation is not supported by the server.';
+      default:
+        return '$operation failed. The server reported an error — check your connection and try again.';
+    }
+  }
+  return '$operation failed. Check your connection and try again.';
+}
+
 class SftpController {
   final _service = SftpService();
 
@@ -32,7 +51,7 @@ class SftpController {
       _sftp = await _service.open(client);
       await _loadDir('/');
     } catch (e) {
-      _set(errorNotifier, 'Could not open SFTP session: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'open SFTP session'));
     }
   }
 
@@ -59,7 +78,7 @@ class SftpController {
       await _service.upload(sftp, remotePath, data);
       await _loadDir(currentPath);
     } catch (e) {
-      _set(errorNotifier, 'Upload failed: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'upload'));
       _set(loadingNotifier, false);
     }
   }
@@ -72,7 +91,7 @@ class SftpController {
     try {
       return await _service.download(sftp, entry.path);
     } catch (e) {
-      _set(errorNotifier, 'Download failed: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'download'));
       return null;
     } finally {
       _set(loadingNotifier, false);
@@ -90,7 +109,7 @@ class SftpController {
       await _service.rename(sftp, entry.path, newPath);
       await _loadDir(currentPath);
     } catch (e) {
-      _set(errorNotifier, 'Rename failed: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'rename'));
       _set(loadingNotifier, false);
     }
   }
@@ -104,7 +123,7 @@ class SftpController {
       await _service.delete(sftp, entry.path, isDirectory: entry.isDirectory);
       await _loadDir(currentPath);
     } catch (e) {
-      _set(errorNotifier, 'Delete failed: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'delete'));
       _set(loadingNotifier, false);
     }
   }
@@ -119,7 +138,7 @@ class SftpController {
       _set(currentPathNotifier, path);
       _set(entriesNotifier, entries);
     } catch (e) {
-      _set(errorNotifier, 'Could not read directory: ${e.toString()}');
+      _set(errorNotifier, _humanizeError(e, operation: 'read directory'));
     } finally {
       _set(loadingNotifier, false);
     }
