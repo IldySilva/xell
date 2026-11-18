@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:xterm/xterm.dart';
 import '../../hosts/models/os_type.dart';
 import '../../hosts/models/ssh_host.dart';
+import '../../hosts/services/host_key_verifier.dart';
 import '../models/terminal_session.dart';
 import '../models/workspace.dart';
 import '../services/ssh_service.dart';
@@ -64,6 +65,7 @@ class TerminalController {
 
   Future<TerminalSession> createSession({
     required SshHost host,
+    required HostKeyApprover approveHostKey,
     String? password,
     String? passphrase,
   }) async {
@@ -79,6 +81,7 @@ class TerminalController {
     try {
       final client = await _service.connect(
         host: host,
+        approveHostKey: approveHostKey,
         password: password,
         passphrase: passphrase,
       );

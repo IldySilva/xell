@@ -29,6 +29,7 @@ import '../../features/snippets/views/snippet_list_page.dart';
 import '../../features/terminal/controllers/command_history_controller.dart';
 import '../../features/terminal/models/terminal_theme_presets.dart';
 import '../../features/terminal/views/credential_prompt_dialog.dart';
+import '../../features/terminal/views/host_key_prompt_dialog.dart';
 import '../../features/terminal/views/terminal_page.dart';
 import '../widgets/xell_about_dialog.dart';
 import 'sidebar.dart';
@@ -285,6 +286,10 @@ class _AppShellState extends State<AppShell> {
     try {
       await _terminalController.createSession(
         host: host,
+        approveHostKey: (check) async {
+          if (!mounted) return false;
+          return showHostKeyPromptDialog(context, host, check);
+        },
         password: host.authType == AuthType.password ? credential : null,
         passphrase: host.authType == AuthType.privateKey ? credential : null,
       );

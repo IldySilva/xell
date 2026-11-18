@@ -3,16 +3,41 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dartssh2/dartssh2.dart';
 import '../../../core/exceptions.dart';
+import '../../hosts/data/known_hosts_storage.dart';
 import '../../hosts/models/os_type.dart';
 import '../../hosts/models/ssh_host.dart';
+import '../../hosts/services/host_key_verifier.dart';
 
 class SshService {
+  final HostKeyVerifier _hostKeys;
+
+  SshService({HostKeyVerifier? hostKeys})
+      : _hostKeys = hostKeys ?? HostKeyVerifier(KnownHostsStorage());
+
+  /// [approveHostKey] is asked when the server's key is unknown or changed.
+  /// Rejecting it aborts the connection before any credential is sent.
   Future<SSHClient> connect({
     required SshHost host,
+    required HostKeyApprover approveHostKey,
     String? password,
     String? passphrase,
   }) async {
     final SSHSocket socket;
+    final hostPort = HostKeyVerifier.keyFor(host.hostname, host.port);
+    // dartssh2 reports a rejected host key as a generic auth abort, so
+    // remember the rejection to give the user the real reason.
+    var hostKeyRejected = false;
+    Future<bool> verifyHostKey(String type, List<int> fingerprint) async {
+      final ok = await _hostKeys.verify(
+        hostPort,
+        HostKeyVerifier.fingerprintToString(fingerprint),
+        approveHostKey,
+      );
+      if (!ok) hostKeyRejected = true;
+      return ok;
+    }
+    const hostKeyRejectedMessage =
+        'The server\'s host key was not trusted. Connection cancelled.';
 
     try {
       socket = await SSHSocket.connect(
@@ -37,6 +62,7 @@ class SshService {
           client = SSHClient(
             socket,
             username: host.username,
+            onVerifyHostKey: verifyHostKey,
             onPasswordRequest: () => password ?? '',
           );
 
@@ -65,6 +91,7 @@ class SshService {
           client = SSHClient(
             socket,
             username: host.username,
+            onVerifyHostKey: verifyHostKey,
             identities: keyPairs,
           );
 
@@ -80,7 +107,10 @@ class SshService {
     } on SSHAuthFailError {
       throw SshException('Authentication failed. Check your credentials.');
     } on SSHAuthAbortError {
+      if (hostKeyRejected) throw const SshException(hostKeyRejectedMessage);
       throw SshException('Authentication was aborted by the server.');
+    } on SSHHostkeyError {
+      throw const SshException(hostKeyRejectedMessage);
     } on SSHKeyDecryptError {
       throw SshException(
         'Could not decrypt the private key. Check your passphrase.',
