@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../app/app_theme.dart';
 import '../../../shared/widgets/os_icon.dart';
 import '../models/ssh_host.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart' hide TerminalController;
 import 'package:xterm/ui.dart' as xterm_ui show TerminalController;

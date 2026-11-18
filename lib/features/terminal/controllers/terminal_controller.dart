@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:xterm/xterm.dart';
 import '../../hosts/models/os_type.dart';
 import '../../hosts/models/ssh_host.dart';

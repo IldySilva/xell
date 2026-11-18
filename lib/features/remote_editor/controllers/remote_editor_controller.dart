@@ -14,8 +14,7 @@ class RemoteEditorController {
 
   bool _disposed = false;
 
-  RemoteEditorController({required SftpClient sftp, required this.path})
-      : _sftp = sftp;
+  RemoteEditorController({required this._sftp, required this.path});
 
   Future<void> load() async {
     _set(loadingNotifier, true);

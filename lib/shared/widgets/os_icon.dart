@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../features/hosts/models/os_type.dart';
 
 class OsIcon extends StatelessWidget {

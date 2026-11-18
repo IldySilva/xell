@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:macos_window_utils/macos_window_utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app/xell_app.dart';
