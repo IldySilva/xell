@@ -12,6 +12,18 @@
 
 ---
 
+## Execution notes (2026-11-18, branch `chore/toolchain-upgrade`)
+
+Phase 0 is done. Where reality differed from the plan:
+
+- **Material moved out of the SDK.** Flutter 3.47+ deprecates `package:flutter/material.dart`; migrated with `dart fix --apply --code=migrate_design_widgets` to `material_ui ^1.11.1` (Task 1).
+- **Dependency coupling.** `file_picker 13` requires `flutter_secure_storage >= 10` (shared `win32`), so Task 6 landed together with Task 3. `desktop_drop 0.9` needs `cross_file 0.4`, incompatible with `file_picker 13` → `desktop_drop 0.8.4`.
+- **window_manager 0.7 is a rewrite** on nativeapi. Migrated to the native `Window` API. On macOS `TitleBarStyle.hidden` also removes the traffic lights, so the macOS title bar stays with `macos_window_utils` (`enableFullSizeContentView` + `hideTitle`). Removed the obsolete `hiddenWindowAtLaunch()` hook. Linux CI needs `libx11-dev libxi-dev`.
+- **flutter_secure_storage 10** defaults `resetOnError: true` on Android, which wipes all credentials on one decrypt failure; disabled it and made reads fail soft (re-prompt).
+- **Host key verification:** dartssh2 reports a rejected key as `SSHAuthAbortError`; `SshService` tracks the rejection to show the real reason. Verified end-to-end against OpenSSH 10.3 in Docker (`test/features/terminal/services/ssh_service_host_key_integration_test.dart`, opt-in via `XELL_SSH_TEST_PORT`).
+- **Platform migrations by Flutter 3.50:** macOS minimum 12.0, iOS minimum 15.0, plugins via SwiftPM. Android: Gradle 9.5, AGP 9.3.1, Kotlin 2.4.20; `builtInKotlin`/`newDsl` stay `false` because plugins still apply `kotlin-android`.
+- **Pre-existing bug fixed:** the iOS `AppIcon` set had only mac entries; current Xcode rejects that.
+
 ## Current → target
 
 | Package | Current | Target in this phase | Notes |
