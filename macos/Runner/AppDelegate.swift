@@ -4,11 +4,11 @@ import FlutterMacOS
 @main
 class AppDelegate: FlutterAppDelegate {
 
-  private var dockMenuItems: [String] = []
+  /// Recent hosts for the Dock menu; set from Flutter via MainFlutterWindow.
+  static var dockMenuItems: [String] = []
 
-  override func applicationDidFinishLaunching(_ notification: Notification) {
-    super.applicationDidFinishLaunching(notification)
-    setupDockChannel()
+  private var flutterWindow: MainFlutterWindow? {
+    NSApp.windows.compactMap { $0 as? MainFlutterWindow }.first
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -29,9 +29,9 @@ class AppDelegate: FlutterAppDelegate {
       keyEquivalent: ""
     )
     menu.addItem(newItem)
-    if !dockMenuItems.isEmpty {
+    if !AppDelegate.dockMenuItems.isEmpty {
       menu.addItem(NSMenuItem.separator())
-      for label in dockMenuItems.prefix(5) {
+      for label in AppDelegate.dockMenuItems.prefix(5) {
         let item = NSMenuItem(title: label, action: nil, keyEquivalent: "")
         item.isEnabled = false
         menu.addItem(item)
@@ -42,44 +42,9 @@ class AppDelegate: FlutterAppDelegate {
 
   @objc private func openNewConnection() {
     NSApp.activate(ignoringOtherApps: true)
-    guard let window = mainFlutterWindow else { return }
+    guard let window = flutterWindow else { return }
     window.makeKeyAndOrderFront(nil)
     // Notify Flutter to open the command palette.
-    if let controller = window.contentViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: "xell/dock",
-        binaryMessenger: controller.engine.binaryMessenger
-      )
-      channel.invokeMethod("openCommandPalette", arguments: nil)
-    }
-  }
-
-  // MARK: - Dock channel setup
-
-  private func setupDockChannel() {
-    guard
-      let window = mainFlutterWindow,
-      let controller = window.contentViewController as? FlutterViewController
-    else { return }
-
-    let channel = FlutterMethodChannel(
-      name: "xell/dock",
-      binaryMessenger: controller.engine.binaryMessenger
-    )
-
-    channel.setMethodCallHandler { [weak self] (call, result) in
-      guard let self = self else { return }
-      switch call.method {
-      case "setBadge":
-        let label = call.arguments as? String
-        NSApplication.shared.dockTile.badgeLabel = label
-        result(nil)
-      case "setRecentHosts":
-        self.dockMenuItems = (call.arguments as? [String]) ?? []
-        result(nil)
-      default:
-        result(FlutterMethodNotImplemented)
-      }
-    }
+    window.dockChannel?.invokeMethod("openCommandPalette", arguments: nil)
   }
 }
