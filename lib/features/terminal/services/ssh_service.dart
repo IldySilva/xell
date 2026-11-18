@@ -86,9 +86,21 @@ class SshService {
         'Could not decrypt the private key. Check your passphrase.',
       );
     } catch (e) {
+      if (isLegacyAlgorithmError(e)) {
+        throw SshException(
+          'The server only offers legacy algorithms (SHA-1 key exchange, '
+          'ssh-rsa host keys or CBC ciphers), which Xell disables by default '
+          'for security. Update the server\'s SSH configuration.',
+        );
+      }
       throw SshException('Connection failed: ${e.toString()}');
     }
   }
+
+  /// dartssh2 4.x removed weak algorithms from its defaults; when the server
+  /// offers nothing else, negotiation fails with "No matching ... algorithm".
+  static bool isLegacyAlgorithmError(Object e) =>
+      e.toString().contains('No matching');
 
   Future<SSHSession> openShell(
     SSHClient client, {
@@ -100,7 +112,7 @@ class SshService {
     );
   }
 
-  void disconnect(SSHClient client) => client.close();
+  Future<void> disconnect(SSHClient client) => client.close();
 
   Future<OsType> detectOs(SSHClient client) async {
     try {

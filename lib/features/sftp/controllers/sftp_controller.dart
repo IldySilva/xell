@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import '../models/sftp_entry.dart';
@@ -41,7 +42,7 @@ class SftpController {
   }
 
   Future<void> connect(SSHClient client) async {
-    _sftp?.close();
+    if (_sftp case final s?) unawaited(s.close());
     _sftp = null;
     _set(entriesNotifier, <SftpEntry>[]);
     _set(currentPathNotifier, '/');
@@ -146,7 +147,7 @@ class SftpController {
 
   void dispose() {
     _disposed = true;
-    _sftp?.close();
+    if (_sftp case final s?) unawaited(s.close());
     entriesNotifier.dispose();
     currentPathNotifier.dispose();
     loadingNotifier.dispose();

@@ -168,7 +168,7 @@ class TerminalController {
     session.outputFlushTimer?.cancel();
     session.stdoutSub?.cancel();
     session.stderrSub?.cancel();
-    session.client?.close();
+    if (session.client case final c?) unawaited(c.close());
     session.status = SessionStatus.disconnected;
 
     final remaining = sessions.where((s) => s.id != id).toList();
@@ -296,7 +296,7 @@ class TerminalController {
       s.outputFlushTimer?.cancel();
       s.stdoutSub?.cancel();
       s.stderrSub?.cancel();
-      s.client?.close();
+      if (s.client case final c?) unawaited(c.close());
     }
     _commandStreamController.close();
     sessionsNotifier.dispose();
