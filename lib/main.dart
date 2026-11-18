@@ -10,26 +10,29 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
-    await windowManager.ensureInitialized();
-
-    const windowOptions = WindowOptions(
-      size: Size(1280, 800),
-      minimumSize: Size(860, 560),
-      center: true,
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.hidden,
-    );
-
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    final window = WindowManager.instance.getCurrent();
+    if (window != null) {
+      window
+        ..minimumSize = const Size(860, 560).toNative()
+        ..backgroundColor = Colors.transparent.toNative();
+      // On macOS this would also remove the traffic lights; the title bar is
+      // handled by macos_window_utils below instead.
+      if (!Platform.isMacOS) window.titleBarStyle = TitleBarStyle.hidden;
+      window.setSize(const Size(1280, 800).toNative(), false);
+      window.center();
       await WindowPreferences.restore();
-      await windowManager.show();
-      await windowManager.focus();
-    });
+      window
+        ..show()
+        ..focus();
+    }
 
     if (Platform.isMacOS) {
       await WindowManipulator.initialize();
-      WindowManipulator.makeTitlebarTransparent();
+      // nativeapi's titleBarStyle does not extend content under the title
+      // bar on macOS; do it with macos_window_utils, as before.
+      await WindowManipulator.makeTitlebarTransparent();
+      await WindowManipulator.enableFullSizeContentView();
+      await WindowManipulator.hideTitle();
       await WindowManipulator.setMaterial(
         NSVisualEffectViewMaterial.underWindowBackground,
       );

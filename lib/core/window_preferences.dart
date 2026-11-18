@@ -21,19 +21,23 @@ abstract final class WindowPreferences {
     final x = prefs.getDouble(_keyX);
     final y = prefs.getDouble(_keyY);
 
+    final window = WindowManager.instance.getCurrent();
+    if (window == null) return;
     if (width != null && height != null) {
-      await windowManager.setSize(Size(width, height));
+      window.setSize(Size(width, height).toNative(), false);
     }
     if (x != null && y != null) {
-      await windowManager.setPosition(Offset(x, y));
+      window.position = Offset(x, y).toNative();
     }
   }
 
   static Future<void> save() async {
     if (!_isDesktop) return;
+    final window = WindowManager.instance.getCurrent();
+    if (window == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final size = await windowManager.getSize();
-    final position = await windowManager.getPosition();
+    final size = window.size.toSize();
+    final position = window.position.toOffset();
     await prefs.setDouble(_keyWidth, size.width);
     await prefs.setDouble(_keyHeight, size.height);
     await prefs.setDouble(_keyX, position.dx);

@@ -45,14 +45,10 @@ class _SftpPageState extends State<SftpPage> {
   }
 
   Future<void> _handleUpload() async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select file to upload',
-      allowMultiple: false,
-    );
-    if (result == null || result.files.single.path == null) return;
-    final path = result.files.single.path!;
-    final name = result.files.single.name;
-    final data = await File(path).readAsBytes();
+    final file = await FilePicker.pickFile(dialogTitle: 'Select file to upload');
+    if (file == null) return;
+    final name = file.name;
+    final data = await file.readAsBytes();
     try {
       await _controller.upload(name, data);
     } catch (_) {
@@ -79,14 +75,14 @@ class _SftpPageState extends State<SftpPage> {
   }
 
   Future<void> _handleDownload(SftpEntry entry) async {
-    final savePath = await FilePicker.platform.saveFile(
-      dialogTitle: 'Save ${entry.name}',
-      fileName: entry.name,
-    );
-    if (savePath == null) return;
+    // file_picker 12+ writes the bytes itself, so download first.
     final data = await _controller.download(entry);
     if (data == null) return;
-    await File(savePath).writeAsBytes(data);
+    await FilePicker.saveFile(
+      dialogTitle: 'Save ${entry.name}',
+      fileName: entry.name,
+      bytes: data,
+    );
   }
 
   Future<void> _handleRename(SftpEntry entry) async {

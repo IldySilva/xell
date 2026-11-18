@@ -47,7 +47,10 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> with WindowListener {
+class _AppShellState extends State<AppShell> {
+  final Window? _window =
+      _isDesktop ? WindowManager.instance.getCurrent() : null;
+  ListenerId? _windowListenerId;
   int _selectedIndex = 0;
   bool _sidebarCollapsed = false;
   double _sidebarWidth = sidebarDefaultWidth;
@@ -66,7 +69,7 @@ class _AppShellState extends State<AppShell> with WindowListener {
   @override
   void initState() {
     super.initState();
-    if (_isDesktop) windowManager.addListener(this);
+    _windowListenerId = _window?.addListener(_onWindowEvent);
     _hostController = HostController()..load();
     _terminalController = TerminalController()
       ..onOsDetected = (hostId, os) {
@@ -95,7 +98,8 @@ class _AppShellState extends State<AppShell> with WindowListener {
     _commandStreamSub?.cancel();
     _terminalController.activeSessionIdNotifier.removeListener(_updateWindowTitle);
     _terminalController.sessionsNotifier.removeListener(_updateDockState);
-    if (_isDesktop) windowManager.removeListener(this);
+    final listenerId = _windowListenerId;
+    if (listenerId != null) _window?.removeListener(listenerId);
     _hostController.dispose();
     _terminalController.dispose();
     _settingsController.dispose();
@@ -122,7 +126,7 @@ class _AppShellState extends State<AppShell> with WindowListener {
     final title = session != null
         ? 'Xell — ${session.host.hostname}'
         : 'Xell';
-    windowManager.setTitle(title);
+    _window?.title = title;
   }
 
   Future<void> _handleReconnect(String sessionId) async {
@@ -133,21 +137,21 @@ class _AppShellState extends State<AppShell> with WindowListener {
     await _handleConnect(host);
   }
 
-  @override
-  void onWindowResized() => WindowPreferences.save();
-
-  @override
-  void onWindowMoved() => WindowPreferences.save();
-
-  @override
-  void onWindowEnterFullScreen() => setState(() => _isFullScreen = true);
-
-  @override
-  void onWindowLeaveFullScreen() => setState(() => _isFullScreen = false);
-
-  void _toggleFullscreen() {
-    if (_isDesktop) windowManager.setFullScreen(!_isFullScreen);
+  void _onWindowEvent(WindowEvent event) {
+    if (!mounted) return;
+    switch (event) {
+      case WindowResizedEvent() || WindowMovedEvent():
+        WindowPreferences.save();
+      case WindowEnteredFullScreenEvent():
+        setState(() => _isFullScreen = true);
+      case WindowExitedFullScreenEvent():
+        setState(() => _isFullScreen = false);
+      default:
+        break;
+    }
   }
+
+  void _toggleFullscreen() => _window?.isFullScreen = !_isFullScreen;
 
   void _closeActiveTab() {
     final id = _terminalController.activeSessionIdNotifier.value;
@@ -414,7 +418,7 @@ class _AppShellState extends State<AppShell> with WindowListener {
     );
   }
 
-  void _quit() => windowManager.close();
+  void _quit() => _window?.close();
 
   void _dispatchEditAction(Intent intent) {
     if (!mounted) return;

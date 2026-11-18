@@ -96,12 +96,9 @@ class _HostFormDialogState extends State<HostFormDialog> {
   }
 
   Future<void> _pickKeyFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Select Private Key',
-      allowMultiple: false,
-    );
-    if (result != null && result.files.single.path != null) {
-      _keyPath.text = result.files.single.path!;
+    final file = await FilePicker.pickFile(dialogTitle: 'Select Private Key');
+    if (file != null && file.path != null) {
+      _keyPath.text = file.path!;
     }
   }
 

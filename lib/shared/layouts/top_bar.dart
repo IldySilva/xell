@@ -221,35 +221,42 @@ class _WindowControls extends StatefulWidget {
   State<_WindowControls> createState() => _WindowControlsState();
 }
 
-class _WindowControlsState extends State<_WindowControls> with WindowListener {
+class _WindowControlsState extends State<_WindowControls> {
+  final Window? _window = WindowManager.instance.getCurrent();
+  ListenerId? _listenerId;
   bool _isMaximized = false;
 
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    windowManager.isMaximized().then((v) {
-      if (mounted) setState(() => _isMaximized = v);
+    final window = _window;
+    if (window == null) return;
+    _isMaximized = window.isMaximized;
+    _listenerId = window.addListener((event) {
+      if (!mounted) return;
+      switch (event) {
+        case WindowMaximizedEvent():
+          setState(() => _isMaximized = true);
+        case WindowRestoredEvent():
+          setState(() => _isMaximized = false);
+        default:
+          break;
+      }
     });
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    final id = _listenerId;
+    if (id != null) _window?.removeListener(id);
     super.dispose();
   }
 
-  @override
-  void onWindowMaximize() => setState(() => _isMaximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _isMaximized = false);
-
-  Future<void> _toggleMaximize() async {
+  void _toggleMaximize() {
     if (_isMaximized) {
-      await windowManager.unmaximize();
+      _window?.unmaximize();
     } else {
-      await windowManager.maximize();
+      _window?.maximize();
     }
   }
 
@@ -261,7 +268,7 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
         _WinButton(
           icon: Icons.remove,
           tooltip: 'Minimize',
-          onTap: () => windowManager.minimize(),
+          onTap: () => _window?.minimize(),
         ),
         const SizedBox(width: 2),
         _WinButton(
@@ -273,7 +280,7 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
         _WinButton(
           icon: Icons.close,
           tooltip: 'Close',
-          onTap: () => windowManager.close(),
+          onTap: () => _window?.close(),
           isClose: true,
         ),
       ],
