@@ -529,6 +529,11 @@ MVP:
 Post-MVP:
 - Windows
 
+Dependency follow-ups:
+- Upgrade `flutter_secure_storage` 10 → 11 one release after v0.2.0 ships. v11 deletes support for the v9 Android ciphers, so users must run a v10 build once to migrate their stored credentials first.
+- Upgrade `desktop_drop` to 0.9 once `file_picker` accepts `cross_file` 0.4.
+- Optional per-host "Allow legacy algorithms" setting for servers that only offer SHA-1 / `ssh-rsa` / CBC (dartssh2 4 disables them by default).
+
 ---
 
 # 7.2 SSH Engine
